@@ -2,6 +2,8 @@
 #include "catch.hpp"
 #include "../HashMap.hpp"
 #include <set>
+#include <random>
+#include <unordered_map>
 
 TEST_CASE("Sanity check, ensure you configured the tests correctly") {
   REQUIRE(1 + 1 == 2);
@@ -134,6 +136,57 @@ TEST_CASE("HashMap tests") {
 
       REQUIRE(!(map == map3));
       REQUIRE(map != map3);
+    }
+  }
+
+  SECTION("Large hashmap tests")
+  {
+    std::unordered_map<int, int> stdMap;
+    HashMap<int, int> myMap;
+
+    // stuff for generating numbers between 0 to 100k
+    std::mt19937 rng;
+    uint32_t seed = 1337;
+    rng.seed(seed);
+    std::uniform_int_distribution<int> intGen(0, 100000);
+
+    int iterCount = 100000;
+
+    // first step, adding random elements to both maps
+
+    for (int i=0; i < iterCount; ++i)
+    {
+      int key = intGen(rng);
+      int val = intGen(rng);
+      stdMap[key] = val;
+      myMap[key] = val;
+    }
+
+    // checking that both maps are equal
+    REQUIRE(myMap.size() == stdMap.size());
+    for (const auto& kvp : myMap)
+    {
+      REQUIRE(stdMap.count(kvp.first) == 1);
+      REQUIRE(stdMap[kvp.first] == kvp.second);
+    }
+
+    std::uniform_int_distribution<int> shouldErase(1, 5);
+    // second step, randomly deleting 20% of the keys
+    for (const auto& kvp: myMap)
+    {
+      if (shouldErase(rng) == 1)
+      {
+        REQUIRE(stdMap.erase(kvp.first) == 1);
+        REQUIRE(myMap.erase(kvp.first));
+      }
+    }
+
+    // checking that both maps are equal
+    REQUIRE(myMap.size() == stdMap.size());
+    for (const auto& kvp : myMap)
+    {
+      REQUIRE(stdMap.count(kvp.first) == 1);
+      REQUIRE(stdMap[kvp.first] == kvp.second);
     }
   }
 }
