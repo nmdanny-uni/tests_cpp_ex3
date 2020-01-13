@@ -9,7 +9,7 @@ TEST_CASE("Sanity check, ensure you configured the tests correctly") {
     REQUIRE(1 + 1 == 2);
 }
 
-TEST_CASE("HashMap tests") {
+TEST_CASE("Basic HashMap tests") {
     // IMPORTANT: each section is independently from other sections, and has no way to affect other sections.
     // For example, clearing the map in one section, only affects that section
     SECTION("Can default construct an empty hashmap and do stuff on it") {
@@ -63,7 +63,7 @@ TEST_CASE("HashMap tests") {
         }
 
         SECTION("Can't erase non-existent elements") {
-            REQUIRE(!map.erase("ttt"));
+            REQUIRE(!map.erase("not in map"));
             REQUIRE(map.size() == 3);
         }
 
@@ -115,6 +115,33 @@ TEST_CASE("HashMap tests") {
 
     }
 
+    SECTION("HashMap has copy constructor") {
+        HashMap<std::string, int> orig;
+        orig["a"] = 1;
+        orig["b"] = 2;
+        orig["c"] = 3;
+        const HashMap<std::string, int> copy(orig);
+
+        SECTION("Const correctness: 'at', 'size', 'containsKey', and operator[] work for const maps") {
+
+
+            REQUIRE(copy.size() == 3);
+
+            REQUIRE(copy.containsKey("a"));
+            REQUIRE(copy.at("a") == 1);
+            REQUIRE(copy["a"] == 1);
+
+            REQUIRE(copy.containsKey("b"));
+            REQUIRE(copy.at("b") == 2);
+            REQUIRE(copy["b"] == 2);
+
+            REQUIRE(copy.containsKey("c"));
+            REQUIRE(copy.at("c") == 3);
+            REQUIRE(copy["c"] == 3);
+        }
+
+    }
+
     SECTION("Creating hashmap with mismatching keys and values vector throws an exception") {
         REQUIRE_THROWS(HashMap<std::string, int>({"a", "b"}, {1}));
     }
@@ -157,11 +184,13 @@ TEST_CASE("HashMap tests") {
         }
     }
 
-    SECTION("Large hashmap tests")
+}
+
+TEST_CASE("HashMap tests for large inputs") {
+    SECTION("Behaves similarly to a std::unordered_map")
     {
         std::unordered_map<int, int> stdMap;
         HashMap<int, int> myMap;
-        stdMap.max_load_factor(3.0f/4.0f);
 
         // stuff for generating numbers between 0 to 100k
         std::mt19937 rng;
@@ -178,8 +207,6 @@ TEST_CASE("HashMap tests") {
             int val = intGen(rng);
             stdMap[key] = val;
             myMap[key] = val;
-            int stdBucket = stdMap.bucket(key);
-            int myBucket = myMap.bucketIndex(key);
             REQUIRE(myMap.at(key) == val);
             REQUIRE(stdMap.at(key) == val);
             REQUIRE(stdMap.size() == myMap.size());
@@ -223,5 +250,60 @@ TEST_CASE("HashMap tests") {
             REQUIRE(stdMap.count(kvp.first) == 1);
             REQUIRE(stdMap[kvp.first] == kvp.second);
         }
+    }
+}
+
+TEST_CASE("Advanced HashMap iterator usage")
+{
+    SECTION("Usage as an Input Iterator(subset of Forward Iterator): use std::accumulate to sum all keys in the map") {
+        HashMap<int, int> myMap;
+        myMap[1] = 1;
+        myMap[2] = 1;
+        myMap[3] = 1;
+        myMap[4] = 1;
+
+        // summing all keys of the map
+        // also, i'm using here a lambda function, which is similar to what we've seen in Java/Python.
+        // (std::accumulate is like 'reduce' in Python, or 'Stream.reduce' in Java)
+        int keySum = std::accumulate(myMap.begin(), myMap.end(), 0,
+                                     [](int sum, std::pair<int, int> kvp) -> int {
+                                         return sum + kvp.first;
+                                     });
+        REQUIRE(keySum == 1 + 2 + 3 + 4);
+    }
+
+    SECTION("Usage as a Forward Iterator: use std::is_permutation to find a permutation of elements") {
+        HashMap<int, int> myMap;
+        myMap[1] = 2;
+        myMap[2] = 1;
+
+        std::vector<std::pair<int,int>> perm{{1,2}, {2,1}};
+
+        /* this is a silly example, because we don't have a well defined order in a HashMap. But no matter how your map
+         * is implemented, iterating it must give the pairs [(1,2), (2,1)] or [(2,1), (1,2)], thus, it must contain the above
+         * permutation.
+         * If you don't understand, see the documentation about std::is_permutation. The most important thing is that it
+         * uses ForwardIt.
+         */
+        bool has_perm = std::is_permutation(myMap.begin(), myMap.end(), perm.cbegin());
+
+        REQUIRE(has_perm);
+    }
+
+    SECTION("Const correctness: Can use iterators on constant map") {
+        // using ctor that takes keys and values vectors
+        HashMap<int, int> nonConst({1,2}, {5,5});
+
+        // using copy ctor
+        const HashMap<int, int> constMap(nonConst);
+
+        int keySum = 0, valueSum = 0;
+        for (const std::pair<int, int>& kvp: constMap)
+        {
+            keySum += kvp.first;
+            valueSum += kvp.second;
+        }
+        REQUIRE(keySum == 3);
+        REQUIRE(valueSum == 10);
     }
 }
