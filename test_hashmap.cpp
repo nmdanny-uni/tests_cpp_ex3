@@ -352,8 +352,8 @@ TEST_CASE("HashMap iterator tests")
         /* this is a silly example, because we don't have a well defined order in a HashMap. But no matter how your map
          * is implemented, iterating it must give the pairs [(1,2), (2,1)] or [(2,1), (1,2)], thus, it must contain the above
          * permutation.
-         * If you don't understand, see the documentation about std::is_permutation. The most important thing is that it
-         * uses ForwardIt.
+         * (I chose this function arbitrarily from std algorithms, because it uses a constant Forward iterator specifically.
+         *  Your HashMap should work with any algorithm that uses a constant forward iterator)
          */
         bool has_perm = std::is_permutation(myMap.begin(), myMap.end(), perm.cbegin());
 
@@ -373,5 +373,41 @@ TEST_CASE("HashMap iterator tests")
         }
         REQUIRE(keySum == 3);
         REQUIRE(valueSum == 10);
+    }
+
+    SECTION("Direct usage of iterator") {
+        const HashMap<int, int> map({1337}, {1337});
+
+        auto it = map.begin();
+        // although not explicitly needed, STL containers should support 'cbegin' and 'cend' as
+        // a convention
+        auto it2 = map.cbegin();
+
+        // copy c'tor for iterator
+        auto it3 = it;
+
+        // both iterators should be equal, as they point to the same (initial) element
+        REQUIRE(it == it2);
+
+        std::pair<int, int> expectedPair(1337, 1337);
+
+        // support both types of dereferencing (into a const reference, or a const pointer)
+        REQUIRE(*it == expectedPair);
+        REQUIRE(it->first == expectedPair.first);
+        REQUIRE(it->second == expectedPair.second);
+
+        // note that this implies that the iterator always points to a valid pair, even if the
+        // key 1337 isn't at the first bucket.
+
+        // can advance an iterator by prefix ++
+        ++it;
+
+        // and by postfix ++
+        auto old = it2++;
+        // so the old iterator still equals the previous iterator
+        REQUIRE(old == it3);
+
+        // both iterators that were advancedshould equal the end
+
     }
 }
